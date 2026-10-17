@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use this software in your research, please cite it as below."
+title: "ACD Angle Capture"
+type: software
+abstract: "Mobile web app for capturing eye photographs at a known camera angle relative to the visual axis, for anterior chamber depth (ACD) research."
+authors:
+  - family-names: "YOUR-LAST-NAME"
+    given-names: "YOUR-FIRST-NAME"
+date-released: "2026-10-17"
+version: "1.0.0"
+license: MIT
+repository-code: "https://github.com/YOUR-USERNAME/YOUR-REPOSITORY"
+keywords:
+  - anterior chamber depth
+  - ophthalmology
+  - eye imaging
+  - web app

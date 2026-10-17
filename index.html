@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ACD Angle Capture</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef3f2;--panel:#fff;--ink:#14232b;--mute:#58707a;--line:#cfdcda;--accent:#0b7a75;--accent-ink:#fff;--ok:#1a8f4a;--warn:#c2410c;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e181d;--panel:#16252c;--ink:#e6f0ee;--mute:#92a9b0;--line:#27393f;--accent:#3cc5bb;--accent-ink:#06221f;--ok:#4ade80;--warn:#fb923c;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e181d;--panel:#16252c;--ink:#e6f0ee;--mute:#92a9b0;--line:#27393f;--accent:#3cc5bb;--accent-ink:#06221f;--ok:#4ade80;--warn:#fb923c;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:400 16px/1.45 Barlow,system-ui,sans-serif;-webkit-text-size-adjust:100%}
+main{max-width:560px;margin:0 auto;padding:14px 14px 40px}
+h1{font:600 26px/1.1 "Barlow Condensed",sans-serif;margin:4px 0 2px;letter-spacing:.01em}
+.sub{color:var(--mute);margin:0 0 12px;font-size:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+label{font-size:13px;color:var(--mute);display:block;margin-bottom:3px}
+input,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px;width:100%;min-height:42px}
+.f{flex:1 1 110px}
+button{font:600 15px Barlow,sans-serif;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;padding:10px 14px;min-height:44px;cursor:pointer}
+button.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button:disabled{opacity:.45}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.chip{padding:6px 12px;min-height:36px;border-radius:18px}
+.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.cam{position:relative;background:#050b0d;border-radius:10px;overflow:hidden;aspect-ratio:3/4;margin-bottom:12px}
+.cam video{width:100%;height:100%;object-fit:cover;display:block}
+.cam .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;color:#9fb6bc;padding:24px;font-size:15px}
+.hud{position:absolute;left:0;right:0;bottom:0;padding:10px 12px 8px;background:linear-gradient(transparent,rgba(5,11,13,.85));color:#fff}
+.hud svg{width:100%;height:auto;display:block}
+.read{display:flex;justify-content:space-between;align-items:flex-end;margin-top:-4px}
+.big{font:600 56px/1 "Barlow Condensed",sans-serif}
+.big small{font-size:24px}
+.stat{font-size:14px;text-align:right;line-height:1.35}
+.st{display:inline-block;padding:2px 9px;border-radius:12px;font-weight:600;font-size:13px;background:#33464c;color:#fff}
+.st.ok{background:var(--ok);color:#04210f}.st.no{background:var(--warn);color:#fff}
+.cross{position:absolute;inset:0;pointer-events:none}
+.cross:before,.cross:after{content:"";position:absolute;background:rgba(255,255,255,.35)}
+.cross:before{left:50%;top:0;bottom:0;width:1px}.cross:after{top:50%;left:0;right:0;height:1px}
+.msg{font-size:14px;color:var(--mute);margin:8px 0 0}
+.gal{display:grid;gap:8px}
+.it{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:6px}
+.it img{width:64px;height:64px;object-fit:cover;border-radius:6px;flex:none;background:#000}
+.it .m{flex:1;min-width:0;font-size:14px}
+.it b{font-family:"Barlow Condensed",sans-serif;font-size:20px;font-weight:600}
+.sw{display:flex;align-items:center;gap:8px;font-size:15px}
+.sw input{width:22px;height:22px;min-height:0}
+.flash{animation:fl .25s}@keyframes fl{from{opacity:.2}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.flash{animation:none}}
+</style>
+</head>
+<body>
+<main>
+<h1>ACD angle capture</h1>
+<p class="sub">Photograph the eye only when the camera sits at your chosen angle from the visual axis.</p>
+
+<div class="card">
+  <div class="row">
+    <div class="f"><label for="sid">Subject ID</label><input id="sid" placeholder="e.g. P001" autocomplete="off"></div>
+    <div class="f"><label for="eye">Eye</label><select id="eye"><option>OD (right)</option><option>OS (left)</option></select></div>
+  </div>
+</div>
+
+<div class="cam" id="cam">
+  <video id="v" playsinline muted autoplay></video>
+  <div class="cross"></div>
+  <div class="ph" id="ph">Tap “Start camera and sensors” to begin.</div>
+  <div class="hud">
+    <svg viewBox="0 0 300 118" aria-hidden="true">
+      <path d="M20 108 A130 130 0 0 1 280 108" fill="none" stroke="#ffffff55" stroke-width="3"/>
+      <g id="ticks"></g>
+      <path id="tgt" d="" fill="none" stroke="#3cc5bb" stroke-width="9" stroke-linecap="round"/>
+      <line id="needle" x1="150" y1="108" x2="150" y2="22" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="150" cy="108" r="5" fill="#fff"/>
+    </svg>
+    <div class="read">
+      <div class="big"><span id="ang">--</span><small>°</small></div>
+      <div class="stat"><span class="st" id="st">Not started</span><br>Tilt <b id="tilt">--</b>° &nbsp;<span id="lvl"></span></div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="row" style="margin-bottom:8px">
+    <button class="pri" id="start">Start camera and sensors</button>
+    <button id="cal" disabled>Set 0° reference</button>
+  </div>
+  <p class="msg" id="msg">Step 1: stand directly in front of the eye with the phone aimed at it, then tap “Set 0° reference”. Step 2: move the phone around the eye to the target angle.</p>
+</div>
+
+<div class="card">
+  <label for="tgtIn">Target angle (0–180°)</label>
+  <div class="row" style="margin-bottom:8px">
+    <input id="tgtIn" type="number" inputmode="decimal" min="0" max="180" step="0.5" value="90" style="width:110px">
+    <button class="chip" data-a="40">40°</button><button class="chip" data-a="60">60°</button><button class="chip on" data-a="90">90°</button><button class="chip" data-a="120">120°</button>
+  </div>
+  <div class="row">
+    <div class="f"><label for="tol">Tolerance</label><select id="tol"><option value="0.5">±0.5°</option><option value="1" selected>±1°</option><option value="2">±2°</option><option value="3">±3°</option></select></div>
+    <div class="f"><label for="hold">Hold time</label><select id="hold"><option value="500">0.5 s</option><option value="1000" selected>1 s</option><option value="2000">2 s</option></select></div>
+  </div>
+  <div class="sw" style="margin-top:10px"><input type="checkbox" id="auto" checked><label for="auto" style="margin:0;color:var(--ink)">Auto-capture when on target and level</label></div>
+  <div class="row" style="margin-top:10px"><button class="pri" id="snap" disabled style="flex:1">Capture now</button></div>
+  <div id="fb" style="display:none;margin-top:10px"><p class="msg" style="margin:0 0 8px">Backup mode: the live camera is blocked here. Take the photo with your phone’s camera app instead. The angle saved is the one read when you return to this page, so keep the phone where it was.</p><button id="fbBtn" style="width:100%">Take photo with camera app</button><input type="file" id="fbIn" accept="image/*" capture="environment" style="display:none"></div>
+  <div id="sim" style="display:none;margin-top:10px"><label for="simr">No motion sensor found. Simulate angle for testing: <b id="simv">0</b>°</label><input id="simr" type="range" min="0" max="180" step="0.5" value="0" style="padding:0"></div>
+</div>
+
+<div class="card">
+  <div class="row" style="justify-content:space-between;margin-bottom:8px"><b id="cnt">Captured images (0)</b><button id="csv" disabled>Save CSV log</button></div>
+  <div class="gal" id="gal"><p class="msg" style="margin:0">No captures yet. Images are kept only while this page is open, so save them as you go.</p></div>
+</div>
+</main>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const R=Math.PI/180;
+let stream=null,sensorOn=false,ref=null,hx=0,hy=0,hasH=false,pitch=0,angle=null,signed=0,target=90,items=[],onSince=0,lastSnap=0,simOn=false,rawH=null;
+
+// dial ticks
+let t='';for(let a=0;a<=180;a+=30){const p=pt(a,118,128);const q=pt(a,128,128);t+=`<line x1="${p[0]}" y1="${p[1]}" x2="${q[0]}" y2="${q[1]}" stroke="#fff9" stroke-width="2"/>`;}
+$('ticks').innerHTML=t;
+function pt(a,r){const th=(180-a)*R;return [150+r*Math.cos(th)*1,108-r*Math.sin(th)*1];}
+function arc(a1,a2,r){const p=pt(a1,r),q=pt(a2,r);return `M${p[0].toFixed(1)} ${p[1].toFixed(1)} A${r} ${r} 0 0 1 ${q[0].toFixed(1)} ${q[1].toFixed(1)}`;}
+function drawTarget(){const tol=+$('tol').value;const a1=Math.max(0,target-Math.max(tol,1.5)),a2=Math.min(180,target+Math.max(tol,1.5));$('tgt').setAttribute('d',a2>a1?arc(a1,a2,88):'');}
+function wrap(d){d=((d+180)%360+360)%360-180;return d;}
+
+function onOrient(e){
+  if(e.alpha==null||e.beta==null||e.gamma==null)return;
+  sensorOn=true;
+  const a=e.alpha*R,b=e.beta*R,g=e.gamma*R;
+  const zx=Math.cos(a)*Math.sin(g)+Math.sin(a)*Math.sin(b)*Math.cos(g);
+  const zy=Math.sin(a)*Math.sin(g)-Math.cos(a)*Math.sin(b)*Math.cos(g);
+  const zz=Math.cos(b)*Math.cos(g);
+  // camera looks along -z of the device
+  const dx=-zx,dy=-zy,dz=-zz;
+  pitch=Math.asin(Math.max(-1,Math.min(1,dz)))/R;
+  const m=Math.hypot(dx,dy);
+  if(m>0.3){const ux=dx/m,uy=dy/m;if(!hasH){hx=ux;hy=uy;hasH=true;}else{hx=hx*.8+ux*.2;hy=hy*.8+uy*.2;}rawH=Math.atan2(hx,hy)/R;}
+  update();
+}
+function update(){
+  if(simOn){angle=+$('simr').value;signed=angle;pitch=0;}
+  else if(ref!=null&&rawH!=null){signed=wrap(rawH-ref);angle=Math.abs(signed);}
+  else angle=null;
+  const lvl=Math.abs(pitch)<=3;
+  $('tilt').textContent=sensorOn||simOn?pitch.toFixed(1):'--';
+  $('lvl').innerHTML=(sensorOn||simOn)?(lvl?'<span class="st ok">Level</span>':'<span class="st no">Tilted</span>'):'';
+  if(angle==null){$('ang').textContent='--';$('st').className='st';$('st').textContent=sensorOn?'Set 0° reference':'Not started';$('snap').disabled=!stream;return;}
+  $('ang').textContent=angle.toFixed(1);
+  $('needle').setAttribute('transform',`rotate(${Math.max(-90,Math.min(90,angle-90))} 150 108)`);
+  const diff=angle-target,tol=+$('tol').value,on=Math.abs(diff)<=tol;
+  const side=signed<0?'left':'right';
+  $('st').className='st '+(on&&lvl?'ok':'no');
+  $('st').textContent=on?(lvl?'On target':'On target, level the phone'):(diff>0?`${diff.toFixed(1)}° too far`:`${(-diff).toFixed(1)}° to go`)+(simOn?'':` (${side})`);
+  $('snap').disabled=!stream;
+  const now=performance.now();
+  if(on&&lvl){if(!onSince)onSince=now;
+    if($('auto').checked&&stream&&now-onSince>=+$('hold').value&&now-lastSnap>3000){capture(true);}
+  }else onSince=0;
+}
+
+async function start(){
+  $('msg').textContent='';
+  try{
+    if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function'){
+      const r=await DeviceOrientationEvent.requestPermission();
+      if(r!=='granted')$('msg').textContent='Motion sensor permission was denied. On iPhone, allow “Motion & Orientation” access for Safari and reload.';
+    }
+  }catch(err){$('msg').textContent='Could not request motion access: '+err.message;}
+  window.addEventListener('deviceorientationabsolute',onOrient,true);
+  window.addEventListener('deviceorientation',onOrient,true);
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:3840},height:{ideal:2160}},audio:false});
+    $('v').srcObject=stream;$('ph').style.display='none';$('cal').disabled=false;$('snap').disabled=false;
+    $('start').textContent='Restart';
+    if(!$('msg').textContent)$('msg').textContent='Aim the phone at the eye from the front (0°), then tap “Set 0° reference”.';
+  }catch(err){
+    $('ph').textContent='Camera unavailable: '+err.message+'. Check camera permission for this page, or open it in your phone’s browser.';
+    $('cal').disabled=false;$('fb').style.display='block';
+  }
+  setTimeout(()=>{if(!sensorOn){$('sim').style.display='block';$('msg').textContent='No motion sensor data received. Use a phone with a gyroscope over HTTPS, or test with the simulated angle below.';}},2000);
+}
+function calibrate(){
+  if(sensorOn&&rawH!=null){ref=rawH;$('msg').textContent='0° reference set. Move the phone around the eye to the target angle. Keep the phone level and aimed at the eye.';update();}
+  else if(simOn||$('sim').style.display==='block'){simOn=true;ref=0;$('msg').textContent='Simulation mode active.';update();}
+  else $('msg').textContent='Waiting for sensor data. Move the phone slightly and try again.';
+}
+async function capture(auto){
+  const v=$('v');if(!stream||!v.videoWidth)return;
+  lastSnap=performance.now();onSince=0;
+  const c=document.createElement('canvas');c.width=v.videoWidth;c.height=v.videoHeight;
+  c.getContext('2d').drawImage(v,0,0);
+  const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.95));
+  const n=items.length+1,sid=($('sid').value.trim()||'subject').replace(/[^\w-]/g,'_'),eye=$('eye').value.slice(0,2);
+  const act=angle==null?null:+angle.toFixed(1);
+  const on=angle!=null&&Math.abs(angle-target)<=+$('tol').value;
+  const fn=`${sid}_${eye}_target${target}_actual${act==null?'NA':act}_${String(n).padStart(3,'0')}.jpg`;
+  items.push({n,sid:$('sid').value.trim(),eye,target,act,tol:+$('tol').value,tilt:+pitch.toFixed(1),on,auto:!!auto,time:new Date().toISOString(),w:c.width,h:c.height,fn,blob,url:URL.createObjectURL(blob)});
+  $('cam').classList.remove('flash');void $('cam').offsetWidth;$('cam').classList.add('flash');
+  if(navigator.vibrate)try{navigator.vibrate(60)}catch(e){}
+  render();
+}
+async function save(name,data){
+  try{const d=await claude.use('downloads');if(!d){throw new Error('no');}await d.save({filename:name,data});}
+  catch(err){
+    if(err&&err.code==='declined')return;
+    try{const f=new File([data],name,{type:data.type||'text/plain'});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:name});return;}}catch(e2){}
+    $('msg').textContent='Saving is not available in this view. Open the artifact link directly in your browser and try again.';
+  }
+}
+function render(){
+  $('cnt').textContent=`Captured images (${items.length})`;$('csv').disabled=!items.length;
+  const g=$('gal');g.innerHTML='';
+  if(!items.length){g.innerHTML='<p class="msg" style="margin:0">No captures yet. Images are kept only while this page is open, so save them as you go.</p>';return;}
+  items.slice().reverse().forEach(it=>{
+    const d=document.createElement('div');d.className='it';
+    const im=document.createElement('img');im.src=it.url;im.alt='Capture '+it.n;
+    const m=document.createElement('div');m.className='m';
+    const b=document.createElement('b');b.textContent=(it.act==null?'No angle':it.act.toFixed(1)+'°')+' ';
+    const sm=document.createElement('span');sm.textContent=`target ${it.target}° ±${it.tol}° · ${it.on?'on target':'off target'}`;
+    const s2=document.createElement('div');s2.style.color='var(--mute)';s2.textContent=`${it.sid||'no ID'} · ${it.eye} · tilt ${it.tilt}°`;
+    m.append(b,sm,s2);
+    const bt=document.createElement('button');bt.textContent='Save';bt.onclick=()=>save(it.fn,it.blob);
+    d.append(im,m,bt);g.append(d);
+  });
+}
+function csv(){
+  const h=['n','subject_id','eye','target_deg','measured_deg','tolerance_deg','tilt_deg','on_target','auto','timestamp','width_px','height_px','filename'];
+  const rows=items.map(i=>[i.n,i.sid,i.eye,i.target,i.act==null?'':i.act,i.tol,i.tilt,i.on,i.auto,i.time,i.w,i.h,i.fn].map(x=>`"${String(x).replace(/"/g,'""')}"`).join(','));
+  save('acd_capture_log.csv',new Blob([h.join(',')+'\n'+rows.join('\n')],{type:'text/csv'}));
+}
+function setTarget(v){v=Math.max(0,Math.min(180,+v||0));target=v;$('tgtIn').value=v;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',+c.dataset.a===v));drawTarget();onSince=0;update();}
+$('start').onclick=start;$('cal').onclick=calibrate;$('snap').onclick=()=>capture(false);$('csv').onclick=csv;
+$('tgtIn').oninput=e=>{if(e.target.value!=='')setTarget(e.target.value)};
+document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>setTarget(c.dataset.a));
+$('tol').onchange=()=>{drawTarget();update();};
+$('simr').oninput=e=>{$('simv').textContent=e.target.value;simOn=true;if(ref==null)ref=0;update();};
+$('fbBtn').onclick=()=>$('fbIn').click();
+$('fbIn').onchange=e=>{const f=e.target.files[0];if(!f)return;
+  const n=items.length+1,sid=($('sid').value.trim()||'subject').replace(/[^\w-]/g,'_'),eye=$('eye').value.slice(0,2);
+  const act=angle==null?null:+angle.toFixed(1);
+  const on=angle!=null&&Math.abs(angle-target)<=+$('tol').value;
+  const fn=`${sid}_${eye}_target${target}_actual${act==null?'NA':act}_${String(n).padStart(3,'0')}.jpg`;
+  items.push({n,sid:$('sid').value.trim(),eye,target,act,tol:+$('tol').value,tilt:+pitch.toFixed(1),on,auto:false,time:new Date().toISOString(),w:0,h:0,fn,blob:f,url:URL.createObjectURL(f)});
+  e.target.value='';render();};
+drawTarget();
+})();
+</script>
+</body>
+</html>
