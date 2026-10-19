@@ -109,11 +109,21 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 </div>
 
 <div class="card">
-  <div class="row" style="justify-content:space-between;margin-bottom:8px"><b id="cnt">Captured images (0)</b><button id="csv" disabled>Save CSV log</button></div>
-  <div class="gal" id="gal"><p class="msg" style="margin:0">No captures yet. Images are kept only while this page is open, so save them as you go.</p></div>
+  <div class="row" style="justify-content:space-between;margin-bottom:8px"><b id="cnt">Captured images (0)</b><span class="msg" style="margin:0">Stored on this device</span></div>
+  <label for="mentor">Mentor’s email (for the email summary)</label>
+  <input id="mentor" type="email" inputmode="email" placeholder="mentor@example.com" autocomplete="off" style="margin-bottom:8px">
+  <div class="row" style="margin-bottom:8px">
+    <button class="pri" id="shareAll" disabled style="flex:1 1 150px">Share all to mentor</button>
+    <button id="zip" disabled style="flex:1 1 120px">Download ZIP</button>
+  </div>
+  <div class="row" style="margin-bottom:10px">
+    <button id="csv" disabled>Save CSV log</button><button id="mail" disabled>Email summary</button><button id="clr" disabled>Clear all</button>
+  </div>
+  <div class="gal" id="gal"><p class="msg" style="margin:0">No captures yet. Images are stored on this device and stay after you close the page.</p></div>
 </div>
 </main>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
 (function(){
 const $=id=>document.getElementById(id);
@@ -195,43 +205,75 @@ async function capture(auto){
   const c=document.createElement('canvas');c.width=v.videoWidth;c.height=v.videoHeight;
   c.getContext('2d').drawImage(v,0,0);
   const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.95));
-  const n=items.length+1,sid=($('sid').value.trim()||'subject').replace(/[^\w-]/g,'_'),eye=$('eye').value.slice(0,2);
+  const n=nextN(),sid=($('sid').value.trim()||'subject').replace(/[^\w-]/g,'_'),eye=$('eye').value.slice(0,2);
   const act=angle==null?null:+angle.toFixed(1);
   const on=angle!=null&&Math.abs(angle-target)<=+$('tol').value;
   const fn=`${sid}_${eye}_target${target}_actual${act==null?'NA':act}_${String(n).padStart(3,'0')}.jpg`;
-  items.push({n,sid:$('sid').value.trim(),eye,target,act,tol:+$('tol').value,tilt:+pitch.toFixed(1),on,auto:!!auto,time:new Date().toISOString(),w:c.width,h:c.height,fn,blob,url:URL.createObjectURL(blob)});
+  items.push({n,sid:$('sid').value.trim(),eye,target,act,tol:+$('tol').value,tilt:+pitch.toFixed(1),on,auto:!!auto,time:new Date().toISOString(),w:c.width,h:c.height,fn,blob,url:URL.createObjectURL(blob)});dbPut(items[items.length-1]);
   $('cam').classList.remove('flash');void $('cam').offsetWidth;$('cam').classList.add('flash');
   if(navigator.vibrate)try{navigator.vibrate(60)}catch(e){}
   render();
 }
+function nextN(){return items.reduce((m,i)=>Math.max(m,i.n),0)+1;}
+let db=null;
+function openDB(){return new Promise(res=>{try{const r=indexedDB.open('acd-captures',1);r.onupgradeneeded=()=>r.result.createObjectStore('caps',{keyPath:'n'});r.onsuccess=()=>{db=r.result;res(true)};r.onerror=()=>res(false);}catch(e){res(false)}});}
+function dbPut(it){if(!db)return;try{const o=Object.assign({},it);delete o.url;db.transaction('caps','readwrite').objectStore('caps').put(o);}catch(e){}}
+function dbDel(n){if(!db)return;try{db.transaction('caps','readwrite').objectStore('caps').delete(n);}catch(e){}}
+function dbClear(){if(!db)return;try{db.transaction('caps','readwrite').objectStore('caps').clear();}catch(e){}}
+function dbAll(){return new Promise(res=>{if(!db)return res([]);try{const q=db.transaction('caps').objectStore('caps').getAll();q.onsuccess=()=>res(q.result||[]);q.onerror=()=>res([]);}catch(e){res([])}});}
+function dl(name,blob){const a=document.createElement('a'),u=URL.createObjectURL(blob);a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);}
 async function save(name,data){
-  try{const d=await claude.use('downloads');if(!d){throw new Error('no');}await d.save({filename:name,data});}
-  catch(err){
-    if(err&&err.code==='declined')return;
-    try{const f=new File([data],name,{type:data.type||'text/plain'});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:name});return;}}catch(e2){}
-    $('msg').textContent='Saving is not available in this view. Open the artifact link directly in your browser and try again.';
-  }
+  try{if(window.claude&&claude.use){const d=await claude.use('downloads');if(d){await d.save({filename:name,data});return;}}}
+  catch(err){if(err&&err.code==='declined')return;}
+  dl(name,data);
+}
+function csvBlob(){
+  const h=['n','subject_id','eye','target_deg','measured_deg','tolerance_deg','tilt_deg','on_target','auto','timestamp','width_px','height_px','filename'];
+  const rows=items.map(i=>[i.n,i.sid,i.eye,i.target,i.act==null?'':i.act,i.tol,i.tilt,i.on,i.auto,i.time,i.w,i.h,i.fn].map(x=>`"${String(x).replace(/"/g,'""')}"`).join(','));
+  return new Blob([h.join(',')+'\n'+rows.join('\n')],{type:'text/csv'});
+}
+function csv(){save('acd_capture_log.csv',csvBlob());}
+async function shareAll(){
+  if(!items.length)return;
+  const files=items.map(i=>new File([i.blob],i.fn,{type:'image/jpeg'}));
+  files.push(new File([csvBlob()],'acd_capture_log.csv',{type:'text/csv'}));
+  const data={files,title:'ACD angle captures',text:'ACD angle captures: '+items.length+' images with CSV log'};
+  try{if(navigator.canShare&&navigator.canShare(data)){await navigator.share(data);return;}}
+  catch(e){if(e&&e.name==='AbortError')return;}
+  $('msg').textContent='Direct sharing is not supported in this browser. Tap “Download ZIP” and attach the file to an email or message.';
+}
+async function zip(){
+  if(!window.JSZip){$('msg').textContent='The ZIP tool could not load. Check your internet connection and reload.';return;}
+  const z=new JSZip();items.forEach(i=>z.file(i.fn,i.blob));z.file('acd_capture_log.csv',csvBlob());
+  const b=await z.generateAsync({type:'blob'});
+  save('acd_captures_'+new Date().toISOString().slice(0,10)+'.zip',b);
+}
+function mail(){
+  const to=$('mentor').value.trim();
+  const lines=items.map(i=>'#'+i.n+' '+(i.sid||'no ID')+' '+i.eye+' | target '+i.target+'° | measured '+(i.act==null?'NA':i.act)+'° | tilt '+i.tilt+'° | '+(i.on?'on':'off')+' target');
+  const body='Hello,\n\nACD angle capture results ('+items.length+' images). I will send the image files separately.\n\n'+lines.join('\n');
+  $('msg').textContent='Email opened with the summary. Images cannot be attached automatically, so use “Share all to mentor” or “Download ZIP” to send the files.';
+  location.href='mailto:'+to+'?subject='+encodeURIComponent('ACD angle capture results')+'&body='+encodeURIComponent(body);
 }
 function render(){
-  $('cnt').textContent=`Captured images (${items.length})`;$('csv').disabled=!items.length;
+  const n=items.length;$('cnt').textContent='Captured images ('+n+')';
+  ['csv','mail','shareAll','zip','clr'].forEach(id=>$(id).disabled=!n);
   const g=$('gal');g.innerHTML='';
-  if(!items.length){g.innerHTML='<p class="msg" style="margin:0">No captures yet. Images are kept only while this page is open, so save them as you go.</p>';return;}
+  if(!n){g.innerHTML='<p class="msg" style="margin:0">No captures yet. Images are stored on this device and stay after you close the page.</p>';return;}
   items.slice().reverse().forEach(it=>{
     const d=document.createElement('div');d.className='it';
     const im=document.createElement('img');im.src=it.url;im.alt='Capture '+it.n;
     const m=document.createElement('div');m.className='m';
     const b=document.createElement('b');b.textContent=(it.act==null?'No angle':it.act.toFixed(1)+'°')+' ';
-    const sm=document.createElement('span');sm.textContent=`target ${it.target}° ±${it.tol}° · ${it.on?'on target':'off target'}`;
-    const s2=document.createElement('div');s2.style.color='var(--mute)';s2.textContent=`${it.sid||'no ID'} · ${it.eye} · tilt ${it.tilt}°`;
+    const sm=document.createElement('span');sm.textContent='target '+it.target+'° ±'+it.tol+'° · '+(it.on?'on target':'off target');
+    const s2=document.createElement('div');s2.style.color='var(--mute)';s2.textContent=(it.sid||'no ID')+' · '+it.eye+' · tilt '+it.tilt+'°';
     m.append(b,sm,s2);
+    const col=document.createElement('div');col.style.cssText='display:flex;flex-direction:column;gap:6px';
     const bt=document.createElement('button');bt.textContent='Save';bt.onclick=()=>save(it.fn,it.blob);
-    d.append(im,m,bt);g.append(d);
+    const bd=document.createElement('button');bd.textContent='Delete';
+    bd.onclick=()=>{if(bd.dataset.s){URL.revokeObjectURL(it.url);items=items.filter(x=>x.n!==it.n);dbDel(it.n);render();}else{bd.dataset.s='1';bd.textContent='Sure?';setTimeout(()=>{bd.dataset.s='';bd.textContent='Delete';},3000);}};
+    col.append(bt,bd);d.append(im,m,col);g.append(d);
   });
-}
-function csv(){
-  const h=['n','subject_id','eye','target_deg','measured_deg','tolerance_deg','tilt_deg','on_target','auto','timestamp','width_px','height_px','filename'];
-  const rows=items.map(i=>[i.n,i.sid,i.eye,i.target,i.act==null?'':i.act,i.tol,i.tilt,i.on,i.auto,i.time,i.w,i.h,i.fn].map(x=>`"${String(x).replace(/"/g,'""')}"`).join(','));
-  save('acd_capture_log.csv',new Blob([h.join(',')+'\n'+rows.join('\n')],{type:'text/csv'}));
 }
 function setTarget(v){v=Math.max(0,Math.min(180,+v||0));target=v;$('tgtIn').value=v;
   document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',+c.dataset.a===v));drawTarget();onSince=0;update();}
@@ -242,12 +284,18 @@ $('tol').onchange=()=>{drawTarget();update();};
 $('simr').oninput=e=>{$('simv').textContent=e.target.value;simOn=true;if(ref==null)ref=0;update();};
 $('fbBtn').onclick=()=>$('fbIn').click();
 $('fbIn').onchange=e=>{const f=e.target.files[0];if(!f)return;
-  const n=items.length+1,sid=($('sid').value.trim()||'subject').replace(/[^\w-]/g,'_'),eye=$('eye').value.slice(0,2);
+  const n=nextN(),sid=($('sid').value.trim()||'subject').replace(/[^\w-]/g,'_'),eye=$('eye').value.slice(0,2);
   const act=angle==null?null:+angle.toFixed(1);
   const on=angle!=null&&Math.abs(angle-target)<=+$('tol').value;
   const fn=`${sid}_${eye}_target${target}_actual${act==null?'NA':act}_${String(n).padStart(3,'0')}.jpg`;
-  items.push({n,sid:$('sid').value.trim(),eye,target,act,tol:+$('tol').value,tilt:+pitch.toFixed(1),on,auto:false,time:new Date().toISOString(),w:0,h:0,fn,blob:f,url:URL.createObjectURL(f)});
+  items.push({n,sid:$('sid').value.trim(),eye,target,act,tol:+$('tol').value,tilt:+pitch.toFixed(1),on,auto:false,time:new Date().toISOString(),w:0,h:0,fn,blob:f,url:URL.createObjectURL(f)});dbPut(items[items.length-1]);
   e.target.value='';render();};
+$('shareAll').onclick=shareAll;$('zip').onclick=zip;$('mail').onclick=mail;
+$('clr').onclick=()=>{const b=$('clr');if(b.dataset.s){items.forEach(i=>URL.revokeObjectURL(i.url));items=[];dbClear();b.dataset.s='';b.textContent='Clear all';render();}else{b.dataset.s='1';b.textContent='Tap again to delete all';setTimeout(()=>{b.dataset.s='';b.textContent='Clear all';},3500);}};
+try{$('mentor').value=localStorage.getItem('acd-mentor')||'';}catch(e){}
+$('mentor').oninput=()=>{try{localStorage.setItem('acd-mentor',$('mentor').value)}catch(e){}};
+try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}
+openDB().then(dbAll).then(a=>{items=a.sort((x,y)=>x.n-y.n).map(i=>Object.assign({},i,{url:URL.createObjectURL(i.blob)}));render();});
 drawTarget();
 })();
 </script>

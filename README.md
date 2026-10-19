@@ -17,6 +17,11 @@ Photographing the eye from the temporal side "at 90°" by hand is not repeatable
 - Auto-capture when on target, or manual capture
 - Full-resolution JPEG saved with the angle in the filename
 - CSV log of every capture (subject ID, eye, target, measured angle, tilt, timestamp)
+- **Captures are stored on the device** (browser storage) and are still there after closing or reloading the page
+- **Share all to mentor**: sends every image plus the CSV through the phone's share sheet (WhatsApp, Gmail, Drive and so on)
+- **Download ZIP** of all images and the CSV for emailing or archiving
+- **Email summary** that opens an email to your mentor with the results table (files are sent separately)
+- Delete single captures or clear all (with a confirmation tap)
 - Works on Android and iPhone in the browser, with no installation
 - Backup mode that uses the phone's own camera app if live camera access is blocked
 - Light and dark mode
@@ -29,8 +34,8 @@ Photographing the eye from the temporal side "at 90°" by hand is not repeatable
 4. Stand directly in front of the eye with the phone aimed at it and tap **Set 0° reference**. This defines the visual axis as 0°.
 5. Set the target angle.
 6. Move the phone around the eye, keeping it level and aimed at the eye, until the status shows **On target**.
-7. The photo is captured automatically (or tap **Capture now**).
-8. Tap **Save** on each image and **Save CSV log** when finished.
+7. The photo is captured automatically (or tap **Capture now**) and stored in the list.
+8. To send your work, tap **Share all to mentor** (or **Download ZIP** and attach it to an email).
 
 Redo step 4 for every subject.
 
@@ -57,7 +62,8 @@ The camera and motion sensors only work on an `https://` address, so opening `in
 
 - The angle is estimated from the phone's gyroscope and compass sensors, so it depends on sensor quality and can drift. **Validate it against a protractor or printed angle template** before collecting study data, and report that validation in your methods.
 - Magnetic interference (metal furniture, equipment) can affect readings on some phones.
-- Captured images are kept only while the page is open. Save images and the CSV as you go.
+- Captures are stored in the browser on that phone only. Clearing the browser's site data, using private browsing, or switching phones removes or hides them, so **share or download a ZIP backup regularly**.
+- "Share all" depends on the phone's browser supporting file sharing. If it does not, use **Download ZIP**.
 - In backup mode (phone camera app) the live angle is not visible during the shot. The recorded angle is the one read when you return to the page.
 - iPhone requires you to grant Motion and Orientation access each session.
 
@@ -72,7 +78,7 @@ The camera and motion sensors only work on an `https://` address, so opening `in
 
 ## Privacy
 
-Everything runs in the browser on your device. No images or data are uploaded anywhere by this app.
+Everything runs in the browser on your device. The app does not upload images or data anywhere. Files leave your phone only when you choose to share or download them. If images show identifiable people, follow your ethics approval and consent requirements when sending them.
 
 ## Project files
 
